@@ -12,4 +12,7 @@ module Dropbox
 
   # The content API endpoint used for upload/download calls.
   CONTENT_API = 'https://content.dropboxapi.com/2'.freeze
+
+  # Used when making https requests
+  TRUSTED_CERT_FILE = File.join(File.dirname(__FILE__), 'trusted-certs.crt')
 end
