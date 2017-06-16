@@ -126,8 +126,8 @@ module Dropbox
     #
     # @param [String] path
     # @return [Array<Dropbox::Metadata>]
-    def list_folder(path, recursive: false, get_all: false)
-      resp = request('/files/list_folder', path: path, recursive: recursive)
+    def list_folder(path, recursive: false, get_all: false, include_deleted: false)
+      resp = request('/files/list_folder', path: path, recursive: recursive, include_deleted: include_deleted)
       entries = resp['entries']
       if get_all && resp['has_more']
         while resp['has_more'] do
