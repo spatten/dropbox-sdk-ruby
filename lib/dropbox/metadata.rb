@@ -42,6 +42,7 @@ module Dropbox
       @id = attrs.delete('id')
       @shared_folder_id = attrs.delete('shared_folder_id')
       @parent_shared_folder_id = attrs.delete('parent_shared_folder_id')
+      @time_invited = attrs.delete('time_invited')
       super(attrs)
     end
 
