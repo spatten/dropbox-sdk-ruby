@@ -343,6 +343,26 @@ module Dropbox
       [entries, resp['cursor']]
     end
 
+    # List mountable folders owned by the current user
+    # @param limit [Integer] The maximum number of results to return. Defaults to 1000
+    # @return [Array<Dropbox::FileMetadata>] entries
+    # @return [String] cursor
+    def list_mountable_folders(limit = 1000)
+      resp = request('/sharing/list_mountable_folders', limit: limit)
+      entries = resp['entries'].map { |entry| FolderMetadata.new(entry) }
+      [entries, resp['cursor']]
+    end
+
+    # Continue the list of mountable folders
+    # @param cursor [String]
+    # @return [Array<Dropbox::FileMetadata>] entries
+    # @return [String] cursor
+    def continue_list_mountable_folders(cursor)
+      resp = request('/sharing/list_mountable_folders/continue', cursor: cursor)
+      entries = resp['entries'].map { |entry| FolderMetadata.new(entry) }
+      [entries, resp['cursor']]
+    end
+
     # Make a folder shared
     # @param path [String] The path to the folder to be made shared
     # @param member_policy [String] Can be 'anyone' or 'team'. Defaults to 'anyone'.
