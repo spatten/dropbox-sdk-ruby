@@ -90,6 +90,15 @@ module Dropbox
       parse_tagged_response(resp)
     end
 
+    # Get the metadata for a shared folder.
+    #
+    # @param [String] path
+    # @return [Dropbox::Metadata]
+    def get_shared_folder_metadata(shared_folder_id)
+      resp = request('/sharing/get_folder_metadata', shared_folder_id: shared_folder_id)
+      FolderMetadata.new(resp)
+    end
+
     # Get a preview for a file.
     #
     # @param [String] path
