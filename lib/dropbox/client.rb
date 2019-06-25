@@ -499,7 +499,12 @@ module Dropbox
           .headers(content_type: ('application/json' if data))
           .post(url, json: data)
 
-        raise ApiError.new(resp) if resp.code != 200
+        if resp.code != 200
+          puts "DROPBOX API ERROR, code = #{resp.code}"
+          puts "resp:\n#{resp.inspect}"
+
+          raise ApiError.new(resp)
+        end
         resp.parse
       end
 
