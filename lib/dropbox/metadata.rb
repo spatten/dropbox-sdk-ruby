@@ -36,13 +36,14 @@ module Dropbox
 
   # Contains the metadata (but not contents) of a folder.
   class FolderMetadata < Metadata
-    attr_reader :id, :shared_folder_id, :parent_shared_folder_id, :time_invited
+    attr_reader :id, :shared_folder_id, :parent_shared_folder_id, :time_invited, :access_type
 
     def initialize(attrs={})
       @id = attrs.delete('id')
       @shared_folder_id = attrs.delete('shared_folder_id')
       @parent_shared_folder_id = attrs.delete('parent_shared_folder_id')
       @time_invited = attrs.delete('time_invited')
+      @access_type = attrs.delete('access_type')['.tag'] if attrs['access_type']
       super(attrs)
     end
 
