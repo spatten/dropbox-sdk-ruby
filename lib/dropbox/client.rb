@@ -504,9 +504,10 @@ module Dropbox
 
           # retries left:sleep time in seconds -- 5:5, 4:20, 3:45, 2:80, 1:125
           sleep_time = ((6 - retries_left)**2) * 5
+          # Mostly so we can speed up tests
+          sleep_time = ENV['429_SLEEP'].to_f if ENV['429_SLEEP']
           sleep(sleep_time)
           retries_left -= 1
-          res
         end
 
         raise ApiError.new(resp) if resp.code != 200
