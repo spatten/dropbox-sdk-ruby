@@ -494,20 +494,17 @@ module Dropbox
 
       def request(action, data=nil)
         url = API + action
-        resp = HTTP.auth('Bearer ' + @access_token)
-          .headers(content_type: ('application/json' if data))
-          .post(url, json: data)
-
-        # 429 errors are transient errors that should be retried. More info on them here:
-        # https://www.dropbox.com/developers/reference/data-ingress-guide
         retries_left = 5
-        while resp.code == 429 && retries_left > 0
-          # retries left:sleep time in seconds -- 5:5, 4:20, 3:45, 2:80, 1:125
-          sleep_time = ((6 - retries_left)**2) * 5
-          sleep(sleep_time)
+        loop do
           resp = HTTP.auth('Bearer ' + @access_token)
                    .headers(content_type: ('application/json' if data))
                    .post(url, json: data)
+
+          break if resp.code != 429 || retries_left <= 0
+
+          # retries left:sleep time in seconds -- 5:5, 4:20, 3:45, 2:80, 1:125
+          sleep_time = ((6 - retries_left)**2) * 5
+          sleep(sleep_time)
           retries_left -= 1
         end
         raise ApiError.new(resp) if resp.code != 200
