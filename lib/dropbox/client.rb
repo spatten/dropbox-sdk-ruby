@@ -500,17 +500,15 @@ module Dropbox
 
         # 429 errors are transient errors that should be retried. More info on them here:
         # https://www.dropbox.com/developers/reference/data-ingress-guide
-        if resp.code == 429
-          retries_left = 5
-          while retries_left > 0 && resp.code == 429
-            # retries left:sleep time in seconds -- 7:5, 6:5, 5:5, 4:20, 3:45, 2:80, 1:125
-            sleep_time = retries_left >= 5 ? 5 : ((6 - retries_left)**2)*5
-            sleep(sleep_time)
-            resp = HTTP.auth('Bearer ' + @access_token)
-                     .headers(content_type: ('application/json' if data))
-                     .post(url, json: data)
-            retries_left -= 1
-          end
+        retries_left = 5
+        while resp.code == 429 && retries_left > 0
+          # retries left:sleep time in seconds -- 5:5, 4:20, 3:45, 2:80, 1:125
+          sleep_time = ((6 - retries_left)**2) * 5
+          sleep(sleep_time)
+          resp = HTTP.auth('Bearer ' + @access_token)
+                   .headers(content_type: ('application/json' if data))
+                   .post(url, json: data)
+          retries_left -= 1
         end
         raise ApiError.new(resp) if resp.code != 200
 
