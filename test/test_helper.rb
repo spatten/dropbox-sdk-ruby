@@ -16,6 +16,20 @@ Content-Type: application/json
   EOS
 end
 
+def too_many_write_operations_error
+  <<-EOS
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+
+{
+    "error_summary": "too_many_write_operations/...",
+    "error": {
+        ".tag": "too_many_write_operations"
+    }
+}
+  EOS
+end
+
 def stub(name)
   File.new("test/stubs/#{name}.json")
 end
