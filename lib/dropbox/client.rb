@@ -492,67 +492,56 @@ module Dropbox
         end
       end
 
-      def request(action, data=nil)
-        url = API + action
+      # Pass in a block that does the request.
+      # It will hit the request and return the reponse, trying a few times if
+      # the response code is 429. For more information on 429 errors, see
+      # https://www.dropbox.com/developers/reference/data-ingress-guide
+      def safe_request
         retries_left = 5
-        resp = nil
-
-        loop do
-          resp = HTTP.auth('Bearer ' + @access_token)
-                   .headers(content_type: ('application/json' if data))
-                   .post(url, json: data)
-
-          break if resp.code != 429 || retries_left <= 0
+        resp = loop do
+          res = yield
+          break res if res.code != 429 || retries_left <= 0
 
           # retries left:sleep time in seconds -- 5:5, 4:20, 3:45, 2:80, 1:125
           sleep_time = ((6 - retries_left)**2) * 5
           sleep(sleep_time)
           retries_left -= 1
+          res
         end
-        raise ApiError.new(resp) if resp.code != 200
 
+        raise ApiError.new(resp) if resp.code != 200
+        resp
+      end
+
+      def request(action, data=nil)
+        url = API + action
+        resp = safe_request do
+          HTTP.auth('Bearer ' + @access_token)
+              .headers(content_type: ('application/json' if data))
+              .post(url, json: data)
+        end
         resp.parse
       end
 
       def content_request(action, args={})
         url = CONTENT_API + action
-        retries_left = 5
-        resp = nil
-        loop do
-          resp = HTTP.auth('Bearer ' + @access_token)
-                   .headers('Dropbox-API-Arg' => args.to_json).get(url)
-
-          break if resp.code != 429 || retries_left <= 0
-
-          # retries left:sleep time in seconds -- 5:5, 4:20, 3:45, 2:80, 1:125
-          sleep_time = ((6 - retries_left)**2) * 5
-          sleep(sleep_time)
-          retries_left -= 1
+        resp = safe_request do
+          HTTP.auth('Bearer ' + @access_token)
+              .headers('Dropbox-API-Arg' => args.to_json).get(url)
         end
-        raise ApiError.new(resp) if resp.code != 200
 
         file = JSON.parse(resp.headers['Dropbox-API-Result'])
         [file, resp.body]
       end
 
       def upload_request(action, body, args={})
-
-        retries_left = 5
-        resp = nil
-        loop do
-          resp = HTTP.auth('Bearer ' + @access_token).headers({
+        resp = safe_request do
+          HTTP.auth('Bearer ' + @access_token).headers({
             'Content-Type' => 'application/octet-stream',
             'Dropbox-API-Arg' => args.to_json,
             'Transfer-Encoding' => ('chunked' unless body.is_a?(String))
           }).post(CONTENT_API + action, body: body)
-          break if resp.code != 429 || retries_left <= 0
-
-          # retries left:sleep time in seconds -- 5:5, 4:20, 3:45, 2:80, 1:125
-          sleep_time = ((6 - retries_left)**2) * 5
-          sleep(sleep_time)
-          retries_left -= 1
         end
-        raise ApiError.new(resp) if resp.code != 200
 
         JSON.parse(resp.to_s) unless resp.to_s == 'null'
       end
