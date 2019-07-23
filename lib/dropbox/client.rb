@@ -495,6 +495,8 @@ module Dropbox
       def request(action, data=nil)
         url = API + action
         retries_left = 5
+        resp = nil
+
         loop do
           resp = HTTP.auth('Bearer ' + @access_token)
                    .headers(content_type: ('application/json' if data))
@@ -514,51 +516,44 @@ module Dropbox
 
       def content_request(action, args={})
         url = CONTENT_API + action
-        resp = HTTP.auth('Bearer ' + @access_token)
-          .headers('Dropbox-API-Arg' => args.to_json).get(url)
+        retries_left = 5
+        resp = nil
+        loop do
+          resp = HTTP.auth('Bearer ' + @access_token)
+                   .headers('Dropbox-API-Arg' => args.to_json).get(url)
 
-        # 429 errors are transient errors that should be retried. More info on them here:
-        # https://www.dropbox.com/developers/reference/data-ingress-guide
-        if resp.code == 429
-          retries_left = 5
-          while retries_left > 0 && resp.code == 429
-            # retries left:sleep time in seconds -- 7:5, 6:5, 5:5, 4:20, 3:45, 2:80, 1:125
-            sleep_time = retries_left >= 5 ? 5 : ((6 - retries_left)**2)*5
-            sleep(sleep_time)
-            resp = HTTP.auth('Bearer ' + @access_token)
-                     .headers('Dropbox-API-Arg' => args.to_json).get(url)
-            retries_left -= 1
-          end
+          break if resp.code != 429 || retries_left <= 0
+
+          # retries left:sleep time in seconds -- 5:5, 4:20, 3:45, 2:80, 1:125
+          sleep_time = ((6 - retries_left)**2) * 5
+          sleep(sleep_time)
+          retries_left -= 1
         end
         raise ApiError.new(resp) if resp.code != 200
+
         file = JSON.parse(resp.headers['Dropbox-API-Result'])
-        return file, resp.body
+        [file, resp.body]
       end
 
       def upload_request(action, body, args={})
-        resp = HTTP.auth('Bearer ' + @access_token).headers({
-          'Content-Type' => 'application/octet-stream',
-          'Dropbox-API-Arg' => args.to_json,
-          'Transfer-Encoding' => ('chunked' unless body.is_a?(String))
-        }).post(CONTENT_API + action, body: body)
 
-        # 429 errors are transient errors that should be retried. More info on them here:
-        # https://www.dropbox.com/developers/reference/data-ingress-guide
-        if resp.code == 429
-          retries_left = 5
-          while retries_left > 0 && resp.code == 429
-            # retries left:sleep time in seconds -- 7:5, 6:5, 5:5, 4:20, 3:45, 2:80, 1:125
-            sleep_time = retries_left >= 5 ? 5 : ((6 - retries_left)**2)*5
-            sleep(sleep_time)
-            resp = HTTP.auth('Bearer ' + @access_token).headers({
-              'Content-Type' => 'application/octet-stream',
-              'Dropbox-API-Arg' => args.to_json,
-              'Transfer-Encoding' => ('chunked' unless body.is_a?(String))
-            }).post(CONTENT_API + action, body: body)
-            retries_left -= 1
-          end
+        retries_left = 5
+        resp = nil
+        loop do
+          resp = HTTP.auth('Bearer ' + @access_token).headers({
+            'Content-Type' => 'application/octet-stream',
+            'Dropbox-API-Arg' => args.to_json,
+            'Transfer-Encoding' => ('chunked' unless body.is_a?(String))
+          }).post(CONTENT_API + action, body: body)
+          break if resp.code != 429 || retries_left <= 0
+
+          # retries left:sleep time in seconds -- 5:5, 4:20, 3:45, 2:80, 1:125
+          sleep_time = ((6 - retries_left)**2) * 5
+          sleep(sleep_time)
+          retries_left -= 1
         end
         raise ApiError.new(resp) if resp.code != 200
+
         JSON.parse(resp.to_s) unless resp.to_s == 'null'
       end
   end
